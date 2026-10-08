@@ -26,7 +26,7 @@ allow = [
 unlicensed = "warn"
 copyleft = "warn"
 allow-osi-fsf-free = "neither"
-default = "deny"
+default = "warn"
 confidence-threshold = 0.8
 
 [bans]

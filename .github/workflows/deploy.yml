@@ -25,6 +25,7 @@ concurrency:
 
 env:
   STELLAR_CLI_VERSION: "25.2.0"
+  RUST_VERSION: "1.94.0"
 
 jobs:
   deploy:
@@ -38,18 +39,17 @@ jobs:
           fetch-depth: 0
 
       - name: Install stable Rust with wasm32v1-none target
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ env.RUST_VERSION }}
           targets: wasm32v1-none
 
       - uses: Swatinem/rust-cache@v2
 
-      # Use the official install script — fastest, handles arch automatically
       - name: Install stellar-cli (pre-built)
         run: |
-          curl -fsSL https://github.com/stellar/stellar-cli/raw/v${STELLAR_CLI_VERSION}/install.sh \
-            | sh -s -- --version ${STELLAR_CLI_VERSION}
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          curl -sSL https://github.com/stellar/stellar-cli/releases/download/v${STELLAR_CLI_VERSION}/stellar-cli-${STELLAR_CLI_VERSION}-x86_64-unknown-linux-gnu.tar.gz \
+            | tar -xz -C /usr/local/bin stellar
           stellar --version
 
       - name: Import admin identity
