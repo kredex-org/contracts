@@ -1,0 +1,105 @@
+name: Deploy to Testnet
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "**/src/**"
+      - "**/Cargo.toml"
+      - "Cargo.toml"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (build WASM only, skip deploy)"
+        required: false
+        default: "false"
+        type: boolean
+
+permissions:
+  contents: write   # to write new contract IDs back to CONTRACTS.md
+  id-token: write
+
+concurrency:
+  group: deploy-testnet
+  cancel-in-progress: false  # never interrupt a live deployment
+
+jobs:
+  deploy:
+    name: Build & Deploy Contracts
+    runs-on: ubuntu-latest
+    environment: testnet
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install stellar-cli
+        run: cargo install --locked stellar-cli --features opt
+
+      - name: Import admin identity
+        run: |
+          echo "${{ secrets.TESTNET_ADMIN_SECRET }}" | stellar keys add trustlend-admin --secret-key
+
+      - name: Build contracts
+        run: stellar contract build
+
+      - name: Deploy contracts (testnet)
+        if: ${{ inputs.dry_run != 'true' }}
+        id: deploy
+        run: |
+          set -e
+          NETWORK=testnet
+          ADMIN=$(stellar keys address trustlend-admin)
+
+          deploy() {
+            local name=$1 wasm=$2
+            echo "Deploying $name..."
+            ID=$(stellar contract deploy \
+              --wasm "$wasm" \
+              --network $NETWORK \
+              --source trustlend-admin 2>&1 \
+              | grep -oP 'C[A-Z0-9]{55}' | tail -1)
+            echo "${name}=${ID}" >> $GITHUB_OUTPUT
+            echo "  ✅ $name: $ID"
+          }
+
+          deploy REPUTATION  target/wasm32*/release/borrower_reputation.wasm
+          deploy ESCROW      target/wasm32*/release/escrow.wasm
+          deploy LENDING     target/wasm32*/release/lending.wasm
+          deploy DEFAULT     target/wasm32*/release/default_management.wasm
+          deploy LIQUIDITY   target/wasm32*/release/liquidity_pool.wasm
+          deploy ORACLE      target/wasm32*/release/oracle_adapter.wasm
+          deploy NFT         target/wasm32*/release/reputation_nft.wasm
+
+          echo "ADMIN_ADDRESS=${ADMIN}" >> $GITHUB_OUTPUT
+
+      - name: Update CONTRACTS.md
+        if: ${{ inputs.dry_run != 'true' }}
+        run: |
+          sed -i "s/C[A-Z0-9]\{56\}/PLACEHOLDER/g" docs/CONTRACTS.md || true
+          # Write a summary to the GitHub step summary
+          echo "## 🚀 Deployed Contract IDs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Contract | ID |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Reputation | \`${{ steps.deploy.outputs.REPUTATION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Escrow | \`${{ steps.deploy.outputs.ESCROW }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lending | \`${{ steps.deploy.outputs.LENDING }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Default Mgmt | \`${{ steps.deploy.outputs.DEFAULT }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Liquidity Pool | \`${{ steps.deploy.outputs.LIQUIDITY }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Oracle Adapter | \`${{ steps.deploy.outputs.ORACLE }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Reputation NFT | \`${{ steps.deploy.outputs.NFT }}\` |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-testnet-${{ github.sha }}
+          path: target/wasm32*/release/*.wasm
+          retention-days: 90
