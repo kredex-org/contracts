@@ -1,14 +1,11 @@
 #![no_std]
-use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short,
-    Address, Env, Vec,
-};
 use soroban_sdk::token::TokenClient;
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, Vec};
 
 // ─── TTL Constants ────────────────────────────────────────────────────────────
 const LEDGERS_PER_DAY: u32 = 17_280;
-const TTL_THRESHOLD:   u32 = LEDGERS_PER_DAY * 5;  // 5 days  — trigger
-const TTL_EXTEND_TO:   u32 = LEDGERS_PER_DAY * 60; // 60 days — target
+const TTL_THRESHOLD: u32 = LEDGERS_PER_DAY * 5; // 5 days  — trigger
+const TTL_EXTEND_TO: u32 = LEDGERS_PER_DAY * 60; // 60 days — target
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,26 +83,42 @@ impl DefaultManagementContract {
 
         env.storage().instance().set(&DataKey::Admins, &admins);
         env.storage().instance().set(&DataKey::IsPaused, &false);
-        env.storage().instance().set(&DataKey::UsdcToken, &usdc_token);
-        env.storage().instance().set(&DataKey::LendingContract, &lending_contract);
-        env.storage().instance().set(&DataKey::InsuranceEventCount, &0u32);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .set(&DataKey::UsdcToken, &usdc_token);
+        env.storage()
+            .instance()
+            .set(&DataKey::LendingContract, &lending_contract);
+        env.storage()
+            .instance()
+            .set(&DataKey::InsuranceEventCount, &0u32);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
 
         if insurance_seed_amount > 0 {
             let token = TokenClient::new(&env, &usdc_token);
-            token.transfer(&admin1, &env.current_contract_address(), &insurance_seed_amount);
+            token.transfer(
+                &admin1,
+                &env.current_contract_address(),
+                &insurance_seed_amount,
+            );
         }
 
         env.storage()
             .persistent()
             .set(&DataKey::InsuranceBalance, &insurance_seed_amount);
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::InsuranceBalance, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage().persistent().extend_ttl(
+            &DataKey::InsuranceBalance,
+            TTL_THRESHOLD,
+            TTL_EXTEND_TO,
+        );
     }
 
     pub fn get_admins(env: Env) -> Vec<Address> {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::Admins)
@@ -113,7 +126,9 @@ impl DefaultManagementContract {
     }
 
     pub fn get_usdc_token(env: Env) -> Address {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::UsdcToken)
@@ -121,7 +136,9 @@ impl DefaultManagementContract {
     }
 
     pub fn is_paused(env: Env) -> bool {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::IsPaused)
@@ -133,13 +150,17 @@ impl DefaultManagementContract {
     pub fn pause(env: Env, caller1: Address, caller2: Address) {
         Self::assert_2_of_3_admins(&env, &caller1, &caller2);
         env.storage().instance().set(&DataKey::IsPaused, &true);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     pub fn unpause(env: Env, caller1: Address, caller2: Address) {
         Self::assert_2_of_3_admins(&env, &caller1, &caller2);
         env.storage().instance().set(&DataKey::IsPaused, &false);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     // ── Default management ────────────────────────────────────────────────────
@@ -155,7 +176,11 @@ impl DefaultManagementContract {
         Self::assert_not_paused(&env);
         caller.require_auth();
 
-        let lending_contract: Address = env.storage().instance().get(&DataKey::LendingContract).expect("Not initialised");
+        let lending_contract: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::LendingContract)
+            .expect("Not initialised");
         if caller != lending_contract {
             panic!("Unauthorised: caller is not lending contract");
         }
@@ -173,7 +198,9 @@ impl DefaultManagementContract {
 
         let rec_key = DataKey::DefaultRecord(loan_id);
         env.storage().persistent().set(&rec_key, &record);
-        env.storage().persistent().extend_ttl(&rec_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&rec_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         phase
     }
@@ -185,7 +212,9 @@ impl DefaultManagementContract {
             .persistent()
             .get(&rec_key)
             .expect("Default record not found");
-        env.storage().persistent().extend_ttl(&rec_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&rec_key, TTL_THRESHOLD, TTL_EXTEND_TO);
         record
     }
 
@@ -197,9 +226,11 @@ impl DefaultManagementContract {
             .persistent()
             .get(&DataKey::InsuranceBalance)
             .unwrap_or(0);
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::InsuranceBalance, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage().persistent().extend_ttl(
+            &DataKey::InsuranceBalance,
+            TTL_THRESHOLD,
+            TTL_EXTEND_TO,
+        );
         bal
     }
 
@@ -225,9 +256,11 @@ impl DefaultManagementContract {
         env.storage()
             .persistent()
             .set(&DataKey::InsuranceBalance, &(current + amount));
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::InsuranceBalance, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage().persistent().extend_ttl(
+            &DataKey::InsuranceBalance,
+            TTL_THRESHOLD,
+            TTL_EXTEND_TO,
+        );
     }
 
     pub fn trigger_insurance_payout(
@@ -262,9 +295,11 @@ impl DefaultManagementContract {
         env.storage()
             .persistent()
             .set(&DataKey::InsuranceBalance, &(balance - amount));
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::InsuranceBalance, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage().persistent().extend_ttl(
+            &DataKey::InsuranceBalance,
+            TTL_THRESHOLD,
+            TTL_EXTEND_TO,
+        );
 
         let count: u32 = env
             .storage()
@@ -282,32 +317,40 @@ impl DefaultManagementContract {
         };
         let ev_key = DataKey::InsuranceEvent(new_count);
         env.storage().persistent().set(&ev_key, &event);
-        env.storage().persistent().extend_ttl(&ev_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&ev_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         env.storage()
             .instance()
             .set(&DataKey::InsuranceEventCount, &new_count);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
 
-        env.events().publish(
-            (symbol_short!("INS_PAY"), loan_id),
-            (lender, amount),
-        );
+        env.events()
+            .publish((symbol_short!("INS_PAY"), loan_id), (lender, amount));
     }
 
     // ── TTL heartbeat ─────────────────────────────────────────────────────────
 
     pub fn bump_default_ttl(env: Env, loan_id: u32) {
         if env.storage().persistent().has(&DataKey::InsuranceBalance) {
-            env.storage()
-                .persistent()
-                .extend_ttl(&DataKey::InsuranceBalance, TTL_THRESHOLD, TTL_EXTEND_TO);
+            env.storage().persistent().extend_ttl(
+                &DataKey::InsuranceBalance,
+                TTL_THRESHOLD,
+                TTL_EXTEND_TO,
+            );
         }
         let rec_key = DataKey::DefaultRecord(loan_id);
         if env.storage().persistent().has(&rec_key) {
-            env.storage().persistent().extend_ttl(&rec_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+            env.storage()
+                .persistent()
+                .extend_ttl(&rec_key, TTL_THRESHOLD, TTL_EXTEND_TO);
         }
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     // ── Queries ───────────────────────────────────────────────────────────────
@@ -319,7 +362,9 @@ impl DefaultManagementContract {
             .persistent()
             .get(&ev_key)
             .expect("Insurance event not found");
-        env.storage().persistent().extend_ttl(&ev_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&ev_key, TTL_THRESHOLD, TTL_EXTEND_TO);
         ev
     }
 
@@ -334,15 +379,19 @@ impl DefaultManagementContract {
 
     fn days_to_phase(days: u64) -> DefaultPhase {
         match days {
-            1..=7   => DefaultPhase::Friendly,
-            8..=21  => DefaultPhase::Warning,
+            1..=7 => DefaultPhase::Friendly,
+            8..=21 => DefaultPhase::Warning,
             22..=60 => DefaultPhase::Enforcement,
-            _       => DefaultPhase::Reported,
+            _ => DefaultPhase::Reported,
         }
     }
 
     fn assert_not_paused(env: &Env) {
-        let paused: bool = env.storage().instance().get(&DataKey::IsPaused).unwrap_or(false);
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::IsPaused)
+            .unwrap_or(false);
         if paused {
             panic!("Contract is paused");
         }

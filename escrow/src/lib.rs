@@ -1,14 +1,11 @@
 #![no_std]
-use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short,
-    Address, Env,
-};
 use soroban_sdk::token::TokenClient;
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env};
 
 // ─── TTL Constants ────────────────────────────────────────────────────────────
 const LEDGERS_PER_DAY: u32 = 17_280;
-const TTL_THRESHOLD:   u32 = LEDGERS_PER_DAY * 5;  // 5 days  — trigger
-const TTL_EXTEND_TO:   u32 = LEDGERS_PER_DAY * 30; // 30 days — target
+const TTL_THRESHOLD: u32 = LEDGERS_PER_DAY * 5; // 5 days  — trigger
+const TTL_EXTEND_TO: u32 = LEDGERS_PER_DAY * 30; // 30 days — target
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,29 +52,41 @@ impl EscrowContract {
     // ── Admin / Init ──────────────────────────────────────────────────────────
 
     /// One-time initialisation with 3 admin addresses.
-    pub fn initialize(env: Env, admin1: Address, admin2: Address, admin3: Address, usdc_token: Address) {
+    pub fn initialize(
+        env: Env,
+        admin1: Address,
+        admin2: Address,
+        admin3: Address,
+        usdc_token: Address,
+    ) {
         if env.storage().instance().has(&DataKey::Admins) {
             panic!("Contract already initialised");
         }
-        
+
         // Ensure all admins are distinct
         if admin1 == admin2 || admin1 == admin3 || admin2 == admin3 {
             panic!("Admins must be distinct");
         }
 
         admin1.require_auth(); // At least one admin must authorize the init
-        
+
         let admins = soroban_sdk::vec![&env, admin1, admin2, admin3];
-        
+
         env.storage().instance().set(&DataKey::Admins, &admins);
         env.storage().instance().set(&DataKey::IsPaused, &false);
-        env.storage().instance().set(&DataKey::UsdcToken, &usdc_token);
+        env.storage()
+            .instance()
+            .set(&DataKey::UsdcToken, &usdc_token);
         env.storage().instance().set(&DataKey::EscrowCount, &0u32);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     pub fn get_admins(env: Env) -> soroban_sdk::Vec<Address> {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::Admins)
@@ -85,15 +94,19 @@ impl EscrowContract {
     }
 
     pub fn get_usdc_token(env: Env) -> Address {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::UsdcToken)
             .expect("Contract not initialised")
     }
-    
+
     pub fn is_paused(env: Env) -> bool {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::IsPaused)
@@ -106,14 +119,18 @@ impl EscrowContract {
     pub fn pause(env: Env, caller1: Address, caller2: Address) {
         Self::assert_2_of_3_admins(&env, &caller1, &caller2);
         env.storage().instance().set(&DataKey::IsPaused, &true);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     /// Unpause the contract. Requires 2 distinct admin signatures.
     pub fn unpause(env: Env, caller1: Address, caller2: Address) {
         Self::assert_2_of_3_admins(&env, &caller1, &caller2);
         env.storage().instance().set(&DataKey::IsPaused, &false);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     // ── Holds ─────────────────────────────────────────────────────────────────
@@ -163,10 +180,14 @@ impl EscrowContract {
 
         let hold_key = DataKey::Hold(new_id);
         env.storage().persistent().set(&hold_key, &hold);
-        env.storage().persistent().extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         env.storage().instance().set(&DataKey::EscrowCount, &new_id);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("HOLD_CRE"), new_id),
@@ -186,7 +207,9 @@ impl EscrowContract {
             .persistent()
             .get(&hold_key)
             .expect("Escrow hold not found");
-        env.storage().persistent().extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         if hold.lender != lender {
             panic!("Only the lender can revoke");
@@ -203,7 +226,9 @@ impl EscrowContract {
 
         hold.status = EscrowStatus::Revoked;
         env.storage().persistent().set(&hold_key, &hold);
-        env.storage().persistent().extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("HOLD_REV"), escrow_id),
@@ -221,7 +246,9 @@ impl EscrowContract {
             .persistent()
             .get(&hold_key)
             .expect("Escrow hold not found");
-        env.storage().persistent().extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         if hold.status != EscrowStatus::Held {
             panic!("Hold is not in HELD state");
@@ -231,11 +258,17 @@ impl EscrowContract {
         }
 
         let token = TokenClient::new(&env, &hold.token);
-        token.transfer(&env.current_contract_address(), &hold.borrower, &hold.amount);
+        token.transfer(
+            &env.current_contract_address(),
+            &hold.borrower,
+            &hold.amount,
+        );
 
         hold.status = EscrowStatus::Transferred;
         env.storage().persistent().set(&hold_key, &hold);
-        env.storage().persistent().extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("HOLD_DIS"), escrow_id),
@@ -248,9 +281,13 @@ impl EscrowContract {
     pub fn bump_hold_ttl(env: Env, escrow_id: u32) {
         let hold_key = DataKey::Hold(escrow_id);
         if env.storage().persistent().has(&hold_key) {
-            env.storage().persistent().extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+            env.storage()
+                .persistent()
+                .extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
         }
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     // ── Queries ───────────────────────────────────────────────────────────────
@@ -267,12 +304,16 @@ impl EscrowContract {
             .persistent()
             .get(&hold_key)
             .expect("Escrow hold not found");
-        env.storage().persistent().extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&hold_key, TTL_THRESHOLD, TTL_EXTEND_TO);
         hold
     }
 
     pub fn get_escrow_count(env: Env) -> u32 {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::EscrowCount)
@@ -282,7 +323,11 @@ impl EscrowContract {
     // ── Private Helpers ───────────────────────────────────────────────────────
 
     fn assert_not_paused(env: &Env) {
-        let paused: bool = env.storage().instance().get(&DataKey::IsPaused).unwrap_or(false);
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::IsPaused)
+            .unwrap_or(false);
         if paused {
             panic!("Contract is paused");
         }

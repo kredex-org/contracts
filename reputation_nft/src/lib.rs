@@ -8,16 +8,12 @@
 //! SOULBOUND: transfer() always panics. Badges cannot be sold or moved.
 //! Only the authorized minter (reputation contract or admin) can mint.
 
-use soroban_sdk::{
-    contract, contractimpl, contracttype,
-    Address, Env, String,
-    symbol_short,
-};
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, String};
 
 // ─── TTL ─────────────────────────────────────────────────────────────────────
 const LEDGERS_PER_DAY: u32 = 17_280;
-const TTL_THRESHOLD:   u32 = LEDGERS_PER_DAY * 5;
-const TTL_EXTEND_TO:   u32 = LEDGERS_PER_DAY * 60;
+const TTL_THRESHOLD: u32 = LEDGERS_PER_DAY * 5;
+const TTL_EXTEND_TO: u32 = LEDGERS_PER_DAY * 60;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,9 +38,9 @@ pub struct BadgeData {
 /// Storage keys
 #[contracttype]
 pub enum DataKey {
-    Badge(Address),           // BadgeData per holder
-    Minter,                   // authorized minter address (reputation contract or admin)
-    Admin,                    // contract admin (can update minter)
+    Badge(Address), // BadgeData per holder
+    Minter,         // authorized minter address (reputation contract or admin)
+    Admin,          // contract admin (can update minter)
     IsPaused,
 }
 
@@ -55,7 +51,6 @@ pub struct ReputationNftContract;
 
 #[contractimpl]
 impl ReputationNftContract {
-
     // ── Init ──────────────────────────────────────────────────────────────────
 
     /// Called once at deploy time.
@@ -69,24 +64,40 @@ impl ReputationNftContract {
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Minter, &minter);
         env.storage().instance().set(&DataKey::IsPaused, &false);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     pub fn get_admin(env: Env) -> Address {
-        env.storage().instance().get(&DataKey::Admin).expect("Not initialised")
+        env.storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("Not initialised")
     }
 
     pub fn get_minter(env: Env) -> Address {
-        env.storage().instance().get(&DataKey::Minter).expect("Not initialised")
+        env.storage()
+            .instance()
+            .get(&DataKey::Minter)
+            .expect("Not initialised")
     }
 
     /// Admin can update the minter (e.g. after a contract upgrade).
     pub fn set_minter(env: Env, caller: Address, new_minter: Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("Not initialised");
-        if caller != admin { panic!("Not admin"); }
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("Not initialised");
+        if caller != admin {
+            panic!("Not admin");
+        }
         caller.require_auth();
         env.storage().instance().set(&DataKey::Minter, &new_minter);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     pub fn pause(env: Env, caller: Address) {
@@ -106,17 +117,16 @@ impl ReputationNftContract {
     /// Mint a soulbound badge for `holder`.
     /// Can only be called by the authorised `minter`.
     /// If the holder already has a lower-tier badge, upgrades it.
-    pub fn mint(
-        env: Env,
-        minter: Address,
-        holder: Address,
-        tier: BadgeTier,
-        metadata_uri: String,
-    ) {
+    pub fn mint(env: Env, minter: Address, holder: Address, tier: BadgeTier, metadata_uri: String) {
         Self::assert_not_paused(&env);
         let authorised_minter: Address = env
-            .storage().instance().get(&DataKey::Minter).expect("Not initialised");
-        if minter != authorised_minter { panic!("Caller is not the authorised minter"); }
+            .storage()
+            .instance()
+            .get(&DataKey::Minter)
+            .expect("Not initialised");
+        if minter != authorised_minter {
+            panic!("Caller is not the authorised minter");
+        }
         minter.require_auth();
 
         // Allow upgrade from Gold → Platinum but not downgrade
@@ -127,9 +137,14 @@ impl ReputationNftContract {
                 (BadgeTier::Platinum, BadgeTier::Gold) => panic!("Cannot downgrade badge"),
                 (BadgeTier::Platinum, BadgeTier::Platinum) => {
                     // Already Platinum — update metadata URI only
-                    let updated = BadgeData { metadata_uri, ..existing };
+                    let updated = BadgeData {
+                        metadata_uri,
+                        ..existing
+                    };
                     env.storage().persistent().set(&key, &updated);
-                    env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+                    env.storage()
+                        .persistent()
+                        .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
                     return;
                 }
                 _ => {} // Gold→Platinum upgrade or re-mint, fall through
@@ -143,14 +158,15 @@ impl ReputationNftContract {
             metadata_uri,
         };
         env.storage().persistent().set(&key, &badge);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
 
         // Emit event
-        env.events().publish(
-            (symbol_short!("MINT"),),
-            (),
-        );
+        env.events().publish((symbol_short!("MINT"),), ());
     }
 
     // ── Read ──────────────────────────────────────────────────────────────────
@@ -162,9 +178,13 @@ impl ReputationNftContract {
     pub fn get_badge(env: Env, holder: Address) -> BadgeData {
         let key = DataKey::Badge(holder);
         let badge: BadgeData = env
-            .storage().persistent().get(&key)
+            .storage()
+            .persistent()
+            .get(&key)
             .expect("No badge found for this address");
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
         badge
     }
 
@@ -176,12 +196,7 @@ impl ReputationNftContract {
 
     /// Deliberately panics — badges are non-transferable.
     /// This satisfies the SEP-7 / Stellar asset interface expectation.
-    pub fn transfer(
-        _env: Env,
-        _from: Address,
-        _to: Address,
-        _amount: i128,
-    ) {
+    pub fn transfer(_env: Env, _from: Address, _to: Address, _amount: i128) {
         panic!("SOULBOUND: This badge is non-transferable");
     }
 
@@ -208,12 +223,24 @@ impl ReputationNftContract {
     // ── Internal ──────────────────────────────────────────────────────────────
 
     fn assert_admin(env: &Env, caller: &Address) {
-        let admin: Address = env.storage().instance().get(&DataKey::Admin).expect("Not initialised");
-        if caller != &admin { panic!("Not admin"); }
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .expect("Not initialised");
+        if caller != &admin {
+            panic!("Not admin");
+        }
     }
 
     fn assert_not_paused(env: &Env) {
-        let paused: bool = env.storage().instance().get(&DataKey::IsPaused).unwrap_or(false);
-        if paused { panic!("Contract is paused"); }
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::IsPaused)
+            .unwrap_or(false);
+        if paused {
+            panic!("Contract is paused");
+        }
     }
 }

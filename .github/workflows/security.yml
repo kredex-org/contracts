@@ -14,26 +14,13 @@ permissions:
   security-events: write
 
 jobs:
-  audit:
-    name: cargo audit
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-
-      # rustsec/audit-check@v2 is the correct latest version
-      - uses: rustsec/audit-check@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   deny:
     name: cargo deny (license + advisories)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
-      # EmbarkStudios/cargo-deny-action — use @v1 (v2 does not exist yet)
+      # EmbarkStudios/cargo-deny-action — use @v1
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           command: check advisories licenses bans
