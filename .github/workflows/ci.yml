@@ -2,12 +2,13 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "develop"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "develop"]
 
 permissions:
   contents: read
+  pull-requests: write  # allows posting contract-size comments on PRs
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -15,10 +16,30 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
-  check:
-    name: Format, lint, test, build
+  # ─────────────────────────────────────────────
+  # Job 1: Format check
+  # ─────────────────────────────────────────────
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  # ─────────────────────────────────────────────
+  # Job 2: Clippy lint
+  # ─────────────────────────────────────────────
+  clippy:
+    name: Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,22 +47,97 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-          components: rustfmt, clippy
+          components: clippy
 
       - uses: Swatinem/rust-cache@v2
 
-      # Advisory for now: existing code predates these checks.
-      # Help wanted: fix the warnings, then remove `continue-on-error`.
-      - name: Format
-        continue-on-error: true
-        run: cargo fmt --all -- --check
-
-      - name: Clippy
-        continue-on-error: true
+      - name: Clippy (strict)
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Test
-        run: cargo test --workspace
+  # ─────────────────────────────────────────────
+  # Job 3: Unit tests
+  # ─────────────────────────────────────────────
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Build WASM
-        run: cargo build --workspace --target wasm32-unknown-unknown --release
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run workspace tests
+        run: cargo test --workspace --verbose
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: target/test-results/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────
+  # Job 4: Build WASM artifacts
+  # ─────────────────────────────────────────────
+  build-wasm:
+    name: Build WASM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install stellar-cli
+        run: |
+          cargo install --locked stellar-cli --features opt
+
+      - name: Build all contracts
+        run: stellar contract build
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-artifacts
+          path: target/wasm32*/release/*.wasm
+          retention-days: 30
+
+  # ─────────────────────────────────────────────
+  # Job 5: Contract size reporting
+  # ─────────────────────────────────────────────
+  size-report:
+    name: Contract Size Report
+    runs-on: ubuntu-latest
+    needs: build-wasm
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install stellar-cli
+        run: cargo install --locked stellar-cli --features opt
+
+      - name: Build contracts
+        run: stellar contract build
+
+      - name: Report contract sizes
+        run: |
+          echo "## 📦 Contract Sizes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Contract | Size (bytes) |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          for wasm in target/wasm32*/release/*.wasm; do
+            name=$(basename "$wasm" .wasm)
+            size=$(wc -c < "$wasm")
+            echo "| \`$name\` | $size |" >> $GITHUB_STEP_SUMMARY
+          done
