@@ -16,12 +16,15 @@ on:
         type: boolean
 
 permissions:
-  contents: write   # to write new contract IDs back to CONTRACTS.md
+  contents: write
   id-token: write
 
 concurrency:
   group: deploy-testnet
-  cancel-in-progress: false  # never interrupt a live deployment
+  cancel-in-progress: false
+
+env:
+  STELLAR_CLI_VERSION: "25.2.0"
 
 jobs:
   deploy:
@@ -34,14 +37,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install stable Rust with wasm32v1-none target
+        uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install stellar-cli
-        run: cargo install --locked stellar-cli --features opt
+      # Use the official install script — fastest, handles arch automatically
+      - name: Install stellar-cli (pre-built)
+        run: |
+          curl -fsSL https://github.com/stellar/stellar-cli/raw/v${STELLAR_CLI_VERSION}/install.sh \
+            | sh -s -- --version ${STELLAR_CLI_VERSION}
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          stellar --version
 
       - name: Import admin identity
         run: |
@@ -70,21 +79,19 @@ jobs:
             echo "  ✅ $name: $ID"
           }
 
-          deploy REPUTATION  target/wasm32*/release/borrower_reputation.wasm
-          deploy ESCROW      target/wasm32*/release/escrow.wasm
-          deploy LENDING     target/wasm32*/release/lending.wasm
-          deploy DEFAULT     target/wasm32*/release/default_management.wasm
-          deploy LIQUIDITY   target/wasm32*/release/liquidity_pool.wasm
-          deploy ORACLE      target/wasm32*/release/oracle_adapter.wasm
-          deploy NFT         target/wasm32*/release/reputation_nft.wasm
+          deploy REPUTATION  target/wasm32v1-none/release/borrower_reputation.wasm
+          deploy ESCROW      target/wasm32v1-none/release/escrow.wasm
+          deploy LENDING     target/wasm32v1-none/release/lending.wasm
+          deploy DEFAULT     target/wasm32v1-none/release/default_management.wasm
+          deploy LIQUIDITY   target/wasm32v1-none/release/liquidity_pool.wasm
+          deploy ORACLE      target/wasm32v1-none/release/oracle_adapter.wasm
+          deploy NFT         target/wasm32v1-none/release/reputation_nft.wasm
 
           echo "ADMIN_ADDRESS=${ADMIN}" >> $GITHUB_OUTPUT
 
-      - name: Update CONTRACTS.md
+      - name: Print deployment summary
         if: ${{ inputs.dry_run != 'true' }}
         run: |
-          sed -i "s/C[A-Z0-9]\{56\}/PLACEHOLDER/g" docs/CONTRACTS.md || true
-          # Write a summary to the GitHub step summary
           echo "## 🚀 Deployed Contract IDs" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Contract | ID |" >> $GITHUB_STEP_SUMMARY
@@ -101,5 +108,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wasm-testnet-${{ github.sha }}
-          path: target/wasm32*/release/*.wasm
+          path: target/wasm32v1-none/release/*.wasm
           retention-days: 90

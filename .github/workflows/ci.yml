@@ -17,6 +17,8 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # Match the version used locally — bump this when upgrading
+  STELLAR_CLI_VERSION: "25.2.0"
 
 jobs:
   # ─────────────────────────────────────────────
@@ -28,7 +30,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install stable Rust with rustfmt
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
 
@@ -44,7 +47,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install stable Rust with clippy
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
           components: clippy
@@ -63,7 +67,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
 
@@ -79,15 +84,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install stable Rust with wasm32v1-none target
+        uses: dtolnay/rust-toolchain@stable
         with:
-          # wasm32v1-none is the modern target used by stellar-cli v0.22+
           targets: wasm32v1-none
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install stellar-cli
-        run: cargo install --locked stellar-cli --features opt
+      # Use the official install script — fastest, handles arch automatically
+      - name: Install stellar-cli (pre-built)
+        run: |
+          curl -fsSL https://github.com/stellar/stellar-cli/raw/v${STELLAR_CLI_VERSION}/install.sh \
+            | sh -s -- --version ${STELLAR_CLI_VERSION}
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Build all contracts
         run: stellar contract build
@@ -110,14 +119,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Install stable Rust with wasm32v1-none target
+        uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32v1-none
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install stellar-cli
-        run: cargo install --locked stellar-cli --features opt
+      - name: Install stellar-cli (pre-built)
+        run: |
+          curl -sSL https://github.com/stellar/stellar-cli/releases/download/v${STELLAR_CLI_VERSION}/stellar-cli-${STELLAR_CLI_VERSION}-x86_64-unknown-linux-gnu.tar.gz \
+            | tar -xz -C /usr/local/bin stellar
 
       - name: Build contracts
         run: stellar contract build

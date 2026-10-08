@@ -11,7 +11,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write  # for SARIF upload
+  security-events: write
 
 jobs:
   audit:
@@ -20,6 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # rustsec/audit-check@v2 is the correct latest version
       - uses: rustsec/audit-check@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -30,6 +31,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: EmbarkStudios/cargo-deny-action@v2
+      # EmbarkStudios/cargo-deny-action — use @v1 (v2 does not exist yet)
+      - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           command: check advisories licenses bans
+          arguments: --all-features
