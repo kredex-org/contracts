@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write  # allows posting contract-size comments on PRs
+  pull-requests: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -70,14 +70,6 @@ jobs:
       - name: Run workspace tests
         run: cargo test --workspace --verbose
 
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: target/test-results/
-          retention-days: 7
-
   # ─────────────────────────────────────────────
   # Job 4: Build WASM artifacts
   # ─────────────────────────────────────────────
@@ -89,13 +81,13 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          # wasm32v1-none is the modern target used by stellar-cli v0.22+
+          targets: wasm32v1-none
 
       - uses: Swatinem/rust-cache@v2
 
       - name: Install stellar-cli
-        run: |
-          cargo install --locked stellar-cli --features opt
+        run: cargo install --locked stellar-cli --features opt
 
       - name: Build all contracts
         run: stellar contract build
@@ -103,12 +95,12 @@ jobs:
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: wasm-artifacts
-          path: target/wasm32*/release/*.wasm
+          name: wasm-artifacts-${{ github.sha }}
+          path: target/wasm32v1-none/release/*.wasm
           retention-days: 30
 
   # ─────────────────────────────────────────────
-  # Job 5: Contract size reporting
+  # Job 5: Contract size reporting (PRs only)
   # ─────────────────────────────────────────────
   size-report:
     name: Contract Size Report
@@ -120,7 +112,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
 
       - uses: Swatinem/rust-cache@v2
 
@@ -136,7 +128,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Contract | Size (bytes) |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          for wasm in target/wasm32*/release/*.wasm; do
+          for wasm in target/wasm32v1-none/release/*.wasm; do
             name=$(basename "$wasm" .wasm)
             size=$(wc -c < "$wasm")
             echo "| \`$name\` | $size |" >> $GITHUB_STEP_SUMMARY

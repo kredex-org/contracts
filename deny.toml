@@ -2,11 +2,10 @@
 # https://embarkstudios.github.io/cargo-deny/
 
 [advisories]
-# Deny all known security advisories
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 vulnerability = "deny"
-unmaintained = "warn"
+unmaintained = "warn"   # warn only — some Soroban transitive deps are archived
 yanked = "warn"
 notice = "warn"
 ignore = []
@@ -20,20 +19,27 @@ allow = [
     "BSD-3-Clause",
     "ISC",
     "Unicode-DFS-2016",
+    "Unicode-3.0",
     "CC0-1.0",
+    "Zlib",
 ]
-deny = []
+# Soroban SDK uses some crates without explicit license files; warn but don't block
+unlicensed = "warn"
 copyleft = "warn"
 allow-osi-fsf-free = "neither"
 default = "deny"
 confidence-threshold = 0.8
 
+[[licenses.exceptions]]
+# stellar-xdr uses a custom BSD-like license
+allow = ["LicenseRef-stellar-xdr"]
+name = "stellar-xdr"
+version = "*"
+
 [bans]
 multiple-versions = "warn"
 wildcards = "allow"
 highlight = "all"
-workspace-default-features = "allow"
-external-default-features = "allow"
 
 [sources]
 unknown-registry = "warn"

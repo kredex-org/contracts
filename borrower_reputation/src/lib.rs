@@ -1,13 +1,10 @@
 #![no_std]
-use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short,
-    Address, Env, Symbol, Vec, String, IntoVal
-};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, IntoVal, String, Vec};
 
 // ─── TTL Constants ────────────────────────────────────────────────────────────
 const LEDGERS_PER_DAY: u32 = 17_280;
-const TTL_THRESHOLD:   u32 = LEDGERS_PER_DAY * 5;  // 5 days  — trigger
-const TTL_EXTEND_TO:   u32 = LEDGERS_PER_DAY * 60; // 60 days — target for profiles
+const TTL_THRESHOLD: u32 = LEDGERS_PER_DAY * 5; // 5 days  — trigger
+const TTL_EXTEND_TO: u32 = LEDGERS_PER_DAY * 60; // 60 days — target for profiles
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,13 +21,13 @@ pub enum ReputationTier {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReputationEvent {
-    TestLoanRepaid,    // 0  +50 pts
-    LoanRepaidOnTime,  // 1  +20 pts
-    LoanPaidEarly,     // 2  +30 pts
-    LoanLate1Day,      // 3  -5  pts
-    LoanLate7Days,     // 4  -50 pts
-    LoanDefaulted,     // 5  -100 pts
-    LateWarning,       // 6  -50 pts
+    TestLoanRepaid,   // 0  +50 pts
+    LoanRepaidOnTime, // 1  +20 pts
+    LoanPaidEarly,    // 2  +30 pts
+    LoanLate1Day,     // 3  -5  pts
+    LoanLate7Days,    // 4  -50 pts
+    LoanDefaulted,    // 5  -100 pts
+    LateWarning,      // 6  -50 pts
 }
 
 #[contracttype]
@@ -51,7 +48,7 @@ pub struct BorrowerProfile {
 #[contracttype]
 pub enum DataKey {
     BorrowerProfile(Address),
-    KycTier(Address),        // 0=None, 1=Soft($500), 2=Full($5000)
+    KycTier(Address), // 0=None, 1=Soft($500), 2=Full($5000)
     Admins,
     IsPaused,
     LendingContract,
@@ -89,13 +86,21 @@ impl BorrowerReputationContract {
 
         env.storage().instance().set(&DataKey::Admins, &admins);
         env.storage().instance().set(&DataKey::IsPaused, &false);
-        env.storage().instance().set(&DataKey::LendingContract, &lending_contract);
-        env.storage().instance().set(&DataKey::NftContract, &nft_contract);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .set(&DataKey::LendingContract, &lending_contract);
+        env.storage()
+            .instance()
+            .set(&DataKey::NftContract, &nft_contract);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     pub fn get_admins(env: Env) -> Vec<Address> {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::Admins)
@@ -110,7 +115,9 @@ impl BorrowerReputationContract {
     }
 
     pub fn is_paused(env: Env) -> bool {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::IsPaused)
@@ -122,13 +129,17 @@ impl BorrowerReputationContract {
     pub fn pause(env: Env, caller1: Address, caller2: Address) {
         Self::assert_2_of_3_admins(&env, &caller1, &caller2);
         env.storage().instance().set(&DataKey::IsPaused, &true);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     pub fn unpause(env: Env, caller1: Address, caller2: Address) {
         Self::assert_2_of_3_admins(&env, &caller1, &caller2);
         env.storage().instance().set(&DataKey::IsPaused, &false);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     // ── Borrower profile ──────────────────────────────────────────────────────
@@ -153,7 +164,9 @@ impl BorrowerReputationContract {
             freeze_reason: String::from_str(&env, ""),
         };
         env.storage().persistent().set(&key, &profile);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     pub fn has_profile(env: Env, borrower: Address) -> bool {
@@ -169,7 +182,9 @@ impl BorrowerReputationContract {
             .persistent()
             .get(&key)
             .expect("Profile not found");
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
         profile
     }
 
@@ -209,7 +224,9 @@ impl BorrowerReputationContract {
             .persistent()
             .get(&key)
             .expect("Profile not found");
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         if profile.is_frozen {
             panic!("Cannot modify frozen account");
@@ -228,11 +245,19 @@ impl BorrowerReputationContract {
         }
 
         env.storage().persistent().set(&key, &profile);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         // NFT Minting Trigger
-        if profile.reputation_tier == ReputationTier::Gold || profile.reputation_tier == ReputationTier::Platinum {
-            if let Some(nft_contract) = env.storage().instance().get::<_, Address>(&DataKey::NftContract) {
+        if profile.reputation_tier == ReputationTier::Gold
+            || profile.reputation_tier == ReputationTier::Platinum
+        {
+            if let Some(nft_contract) = env
+                .storage()
+                .instance()
+                .get::<_, Address>(&DataKey::NftContract)
+            {
                 // Only mint if they don't already have one (or we could let the NFT contract handle the check,
                 // but we should avoid panicking if they already have one to not block repayment)
                 let has_badge: bool = env.invoke_contract(
@@ -242,7 +267,11 @@ impl BorrowerReputationContract {
                 );
 
                 if !has_badge {
-                    let tier_val: u32 = if profile.reputation_tier == ReputationTier::Gold { 0 } else { 1 };
+                    let tier_val: u32 = if profile.reputation_tier == ReputationTier::Gold {
+                        0
+                    } else {
+                        1
+                    };
                     let uri = if profile.reputation_tier == ReputationTier::Gold {
                         soroban_sdk::String::from_str(&env, "https://kredex.io/badges/gold")
                     } else {
@@ -284,17 +313,27 @@ impl BorrowerReputationContract {
             .persistent()
             .get(&key)
             .expect("Profile not found");
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         profile.total_borrowed += borrowed_delta;
         profile.total_repaid += repaid_delta;
 
         env.storage().persistent().set(&key, &profile);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     /// Freeze an account. Requires 2-of-3 admin signatures.
-    pub fn freeze_account(env: Env, caller1: Address, caller2: Address, borrower: Address, reason: String) {
+    pub fn freeze_account(
+        env: Env,
+        caller1: Address,
+        caller2: Address,
+        borrower: Address,
+        reason: String,
+    ) {
         Self::assert_2_of_3_admins(&env, &caller1, &caller2);
 
         let key = DataKey::BorrowerProfile(borrower);
@@ -303,7 +342,9 @@ impl BorrowerReputationContract {
             .persistent()
             .get(&key)
             .expect("Profile not found");
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         profile.is_frozen = true;
         profile.freeze_reason = reason;
@@ -311,7 +352,9 @@ impl BorrowerReputationContract {
         profile.reputation_tier = ReputationTier::None;
 
         env.storage().persistent().set(&key, &profile);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     /// Unfreeze an account. Requires 2-of-3 admin signatures.
@@ -324,13 +367,17 @@ impl BorrowerReputationContract {
             .persistent()
             .get(&key)
             .expect("Profile not found");
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         profile.is_frozen = false;
         profile.freeze_reason = String::from_str(&env, "");
 
         env.storage().persistent().set(&key, &profile);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     pub fn is_frozen(env: Env, borrower: Address) -> bool {
@@ -342,21 +389,31 @@ impl BorrowerReputationContract {
         let key = DataKey::KycTier(borrower);
         let tier: u32 = env.storage().persistent().get(&key).unwrap_or(0);
         if env.storage().persistent().has(&key) {
-            env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+            env.storage()
+                .persistent()
+                .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
         }
         tier
     }
 
     /// Set KYC tier. Requires 2-of-3 admin signatures.
     /// tier: 0=None, 1=Soft ($500), 2=Full ($5000)
-    pub fn set_kyc_tier(env: Env, caller1: Address, caller2: Address, borrower: Address, tier: u32) {
+    pub fn set_kyc_tier(
+        env: Env,
+        caller1: Address,
+        caller2: Address,
+        borrower: Address,
+        tier: u32,
+    ) {
         Self::assert_2_of_3_admins(&env, &caller1, &caller2);
         if tier > 2 {
             panic!("Invalid KYC tier — max is 2");
         }
         let key = DataKey::KycTier(borrower);
         env.storage().persistent().set(&key, &tier);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     // ── TTL heartbeat ─────────────────────────────────────────────────────────
@@ -364,40 +421,50 @@ impl BorrowerReputationContract {
     pub fn bump_profile_ttl(env: Env, borrower: Address) {
         let key = DataKey::BorrowerProfile(borrower);
         if env.storage().persistent().has(&key) {
-            env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+            env.storage()
+                .persistent()
+                .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
         }
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
     fn event_info(event: &ReputationEvent) -> (i32, bool, bool) {
         match event {
-            ReputationEvent::TestLoanRepaid   => (50,   false, true),
-            ReputationEvent::LoanRepaidOnTime => (20,   false, true),
-            ReputationEvent::LoanPaidEarly    => (30,   false, true),
-            ReputationEvent::LoanLate1Day     => (-5,   false, false),
-            ReputationEvent::LoanLate7Days    => (-50,  false, false),
-            ReputationEvent::LoanDefaulted    => (-100, true,  false),
-            ReputationEvent::LateWarning      => (-50,  false, false),
+            ReputationEvent::TestLoanRepaid => (50, false, true),
+            ReputationEvent::LoanRepaidOnTime => (20, false, true),
+            ReputationEvent::LoanPaidEarly => (30, false, true),
+            ReputationEvent::LoanLate1Day => (-5, false, false),
+            ReputationEvent::LoanLate7Days => (-50, false, false),
+            ReputationEvent::LoanDefaulted => (-100, true, false),
+            ReputationEvent::LateWarning => (-50, false, false),
         }
     }
 
     fn score_to_tier(score: i128) -> ReputationTier {
-        if score < 50       { ReputationTier::None }
-        else if score < 150 { ReputationTier::Beginner }
-        else if score < 500 { ReputationTier::Silver }
-        else if score < 1000{ ReputationTier::Gold }
-        else                { ReputationTier::Platinum }
+        if score < 50 {
+            ReputationTier::None
+        } else if score < 150 {
+            ReputationTier::Beginner
+        } else if score < 500 {
+            ReputationTier::Silver
+        } else if score < 1000 {
+            ReputationTier::Gold
+        } else {
+            ReputationTier::Platinum
+        }
     }
 
     fn tier_max_loan(tier: &ReputationTier) -> i128 {
         match tier {
-            ReputationTier::None     =>      100_0000000,
-            ReputationTier::Beginner =>      500_0000000,
-            ReputationTier::Silver   =>   20_000_000_000,
-            ReputationTier::Gold     =>  100_000_000_000,
-            ReputationTier::Platinum =>1_000_000_000_000,
+            ReputationTier::None => 100_0000000,
+            ReputationTier::Beginner => 500_0000000,
+            ReputationTier::Silver => 20_000_000_000,
+            ReputationTier::Gold => 100_000_000_000,
+            ReputationTier::Platinum => 1_000_000_000_000,
         }
     }
 
@@ -407,24 +474,28 @@ impl BorrowerReputationContract {
         let key = DataKey::KycTier(borrower);
         let tier: u32 = env.storage().persistent().get(&key).unwrap_or(0);
         match tier {
-            0 =>       50_0000000,  // $50
-            1 =>      500_0000000,  // $500
-            _ =>   50_000_000_000,  // $5,000 (tier 2+)
+            0 => 50_0000000,     // $50
+            1 => 500_0000000,    // $500
+            _ => 50_000_000_000, // $5,000 (tier 2+)
         }
     }
 
     fn tier_interest_rate(tier: &ReputationTier) -> u32 {
         match tier {
-            ReputationTier::None     => 1500,
+            ReputationTier::None => 1500,
             ReputationTier::Beginner => 1300,
-            ReputationTier::Silver   => 1200,
-            ReputationTier::Gold     => 1000,
-            ReputationTier::Platinum =>  800,
+            ReputationTier::Silver => 1200,
+            ReputationTier::Gold => 1000,
+            ReputationTier::Platinum => 800,
         }
     }
 
     fn assert_not_paused(env: &Env) {
-        let paused: bool = env.storage().instance().get(&DataKey::IsPaused).unwrap_or(false);
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::IsPaused)
+            .unwrap_or(false);
         if paused {
             panic!("Contract is paused");
         }
@@ -472,27 +543,54 @@ mod tests {
     pub struct MockNftContract;
     #[contractimpl]
     impl MockNftContract {
-        pub fn has_badge(_env: Env, _holder: Address) -> bool { false }
-        pub fn mint(_env: Env, _minter: Address, _holder: Address, _tier: u32, _uri: soroban_sdk::String) {}
+        pub fn has_badge(_env: Env, _holder: Address) -> bool {
+            false
+        }
+        pub fn mint(
+            _env: Env,
+            _minter: Address,
+            _holder: Address,
+            _tier: u32,
+            _uri: soroban_sdk::String,
+        ) {
+        }
     }
 
-    fn setup() -> (Env, BorrowerReputationContractClient<'static>, Address, Address, Address, Address, Address, Address) {
+    fn setup() -> (
+        Env,
+        BorrowerReputationContractClient<'static>,
+        Address,
+        Address,
+        Address,
+        Address,
+        Address,
+        Address,
+    ) {
         let env = Env::default();
         env.mock_all_auths();
 
         let contract_id = env.register(BorrowerReputationContract, ());
         let client = BorrowerReputationContractClient::new(&env, &contract_id);
 
-        let admin1  = Address::generate(&env);
-        let admin2  = Address::generate(&env);
-        let admin3  = Address::generate(&env);
+        let admin1 = Address::generate(&env);
+        let admin2 = Address::generate(&env);
+        let admin3 = Address::generate(&env);
         let lending = Address::generate(&env);
         let borrower = Address::generate(&env);
         let nft_contract = env.register(MockNftContract, ());
 
         client.initialize(&admin1, &admin2, &admin3, &lending, &nft_contract);
 
-        (env, client, admin1, admin2, admin3, lending, borrower, nft_contract)
+        (
+            env,
+            client,
+            admin1,
+            admin2,
+            admin3,
+            lending,
+            borrower,
+            nft_contract,
+        )
     }
 
     // ── Day 24: Full loan lifecycle ───────────────────────────────────────────
@@ -554,7 +652,11 @@ mod tests {
             client.add_reputation_event(&lending, &borrower, &ReputationEvent::LoanRepaidOnTime);
         }
         let p = client.get_profile(&borrower);
-        assert!(p.reputation_score >= 500, "Expected Gold score >=500, got {}", p.reputation_score);
+        assert!(
+            p.reputation_score >= 500,
+            "Expected Gold score >=500, got {}",
+            p.reputation_score
+        );
         assert_eq!(p.reputation_tier, ReputationTier::Gold);
     }
 
@@ -616,9 +718,12 @@ mod tests {
 
         let _reason = soroban_sdk::String::from_str(&Env::default(), "Fraud suspected");
         // Note: we need env to build the string — simplified test
-        client.freeze_account(&admin1, &admin2, &borrower, &soroban_sdk::String::from_str(
-            &client.env, "Fraud suspected"
-        ));
+        client.freeze_account(
+            &admin1,
+            &admin2,
+            &borrower,
+            &soroban_sdk::String::from_str(&client.env, "Fraud suspected"),
+        );
         assert!(client.is_frozen(&borrower));
 
         client.unfreeze_account(&admin1, &admin2, &borrower);
@@ -696,4 +801,3 @@ mod tests {
         assert_eq!(client.get_kyc_tier(&borrower), 2);
     }
 }
-

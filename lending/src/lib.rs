@@ -1,16 +1,16 @@
 #![no_std]
+#![allow(clippy::too_many_arguments)]
 mod interest_rate;
 
-use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short,
-    Address, Env, IntoVal, Symbol, Vec,
-};
 use soroban_sdk::token::TokenClient;
+use soroban_sdk::{
+    contract, contractimpl, contracttype, symbol_short, Address, Env, IntoVal, Symbol, Vec,
+};
 
 // ─── TTL Constants ────────────────────────────────────────────────────────────
 const LEDGERS_PER_DAY: u32 = 17_280;
-const TTL_THRESHOLD:   u32 = LEDGERS_PER_DAY * 5;  // 5 days  — trigger
-const TTL_EXTEND_TO:   u32 = LEDGERS_PER_DAY * 30; // 30 days — target
+const TTL_THRESHOLD: u32 = LEDGERS_PER_DAY * 5; // 5 days  — trigger
+const TTL_EXTEND_TO: u32 = LEDGERS_PER_DAY * 30; // 30 days — target
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +92,7 @@ pub struct LendingContract;
 impl LendingContract {
     // ── Admin / Init ──────────────────────────────────────────────────────────
 
+    #[allow(clippy::too_many_arguments)]
     pub fn initialize(
         env: Env,
         admin1: Address,
@@ -117,17 +118,32 @@ impl LendingContract {
 
         env.storage().instance().set(&DataKey::Admins, &admins);
         env.storage().instance().set(&DataKey::IsPaused, &false);
-        env.storage().instance().set(&DataKey::UsdcToken, &usdc_token);
-        env.storage().instance().set(&DataKey::ReputationContract, &reputation_contract);
-        env.storage().instance().set(&DataKey::DefaultManagementContract, &default_management_contract);
-        env.storage().instance().set(&DataKey::EscrowContract, &escrow_contract);
-        env.storage().instance().set(&DataKey::LiquidityPoolContract, &liquidity_pool_contract);
+        env.storage()
+            .instance()
+            .set(&DataKey::UsdcToken, &usdc_token);
+        env.storage()
+            .instance()
+            .set(&DataKey::ReputationContract, &reputation_contract);
+        env.storage().instance().set(
+            &DataKey::DefaultManagementContract,
+            &default_management_contract,
+        );
+        env.storage()
+            .instance()
+            .set(&DataKey::EscrowContract, &escrow_contract);
+        env.storage()
+            .instance()
+            .set(&DataKey::LiquidityPoolContract, &liquidity_pool_contract);
         env.storage().instance().set(&DataKey::LoanCount, &0u32);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     pub fn get_admins(env: Env) -> Vec<Address> {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::Admins)
@@ -135,7 +151,9 @@ impl LendingContract {
     }
 
     pub fn get_usdc_token(env: Env) -> Address {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::UsdcToken)
@@ -143,7 +161,9 @@ impl LendingContract {
     }
 
     pub fn is_paused(env: Env) -> bool {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::IsPaused)
@@ -155,13 +175,17 @@ impl LendingContract {
     pub fn pause(env: Env, caller1: Address, caller2: Address) {
         Self::assert_2_of_3_admins(&env, &caller1, &caller2);
         env.storage().instance().set(&DataKey::IsPaused, &true);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     pub fn unpause(env: Env, caller1: Address, caller2: Address) {
         Self::assert_2_of_3_admins(&env, &caller1, &caller2);
         env.storage().instance().set(&DataKey::IsPaused, &false);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     // ── Loan lifecycle ────────────────────────────────────────────────────────
@@ -192,8 +216,6 @@ impl LendingContract {
             panic!("Cannot borrow while actively lending");
         }
 
-
-
         let rep_contract: Address = env
             .storage()
             .instance()
@@ -211,7 +233,7 @@ impl LendingContract {
             .instance()
             .get(&DataKey::LiquidityPoolContract)
             .expect("Contract not initialised");
-            
+
         let pool_metrics: (i128, i128, u32) = env.invoke_contract(
             &pool_contract,
             &Symbol::new(&env, "get_pool_metrics"),
@@ -265,10 +287,14 @@ impl LendingContract {
 
         let loan_key = DataKey::Loan(loan_id);
         env.storage().persistent().set(&loan_key, &loan);
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         env.storage().instance().set(&DataKey::LoanCount, &loan_id);
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
 
         Self::push_loan_id_for_borrower(&env, &borrower, loan_id);
         Self::increment_active_borrowings(&env, &borrower);
@@ -296,7 +322,9 @@ impl LendingContract {
             .persistent()
             .get(&loan_key)
             .expect("Loan not found");
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         if loan.status != LoanStatus::Pending {
             panic!("Loan is not in PENDING state");
@@ -325,7 +353,9 @@ impl LendingContract {
         loan.status = LoanStatus::Approved;
 
         env.storage().persistent().set(&loan_key, &loan);
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         Self::push_loan_id_for_lender(&env, &lender, loan_id);
         Self::increment_active_lendings(&env, &lender);
@@ -341,7 +371,9 @@ impl LendingContract {
             .persistent()
             .get(&loan_key)
             .expect("Loan not found");
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         if loan.lender != lender {
             panic!("Caller is not the lender");
@@ -355,8 +387,10 @@ impl LendingContract {
         loan.escrow_id = 0;
 
         env.storage().persistent().set(&loan_key, &loan);
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
-        
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+
         Self::decrement_active_lendings(&env, &lender);
     }
 
@@ -370,7 +404,9 @@ impl LendingContract {
             .persistent()
             .get(&loan_key)
             .expect("Loan not found");
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         if loan.status != LoanStatus::Approved {
             panic!("Loan must be APPROVED before activation");
@@ -378,7 +414,9 @@ impl LendingContract {
         loan.status = LoanStatus::Active;
 
         env.storage().persistent().set(&loan_key, &loan);
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("LOAN_ACT"), loan_id),
@@ -396,14 +434,20 @@ impl LendingContract {
             .persistent()
             .get(&loan_key)
             .expect("Loan not found");
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         if loan.status != LoanStatus::Pending {
             panic!("Loan is not in PENDING state");
         }
 
-        let pool_contract: Address = env.storage().instance().get(&DataKey::LiquidityPoolContract).unwrap();
-        
+        let pool_contract: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::LiquidityPoolContract)
+            .unwrap();
+
         env.invoke_contract::<()>(
             &pool_contract,
             &Symbol::new(&env, "allocate_to_loan"),
@@ -420,24 +464,21 @@ impl LendingContract {
         loan.status = LoanStatus::Active;
 
         env.storage().persistent().set(&loan_key, &loan);
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         Self::push_loan_id_for_borrower(&env, &loan.borrower, loan_id);
         Self::increment_active_borrowings(&env, &loan.borrower);
         // We don't increment active_lendings for the pool contract to save operations
-        
+
         env.events().publish(
             (symbol_short!("POOL_FUND"), loan_id),
             (loan.borrower, loan.amount),
         );
     }
 
-    pub fn record_payment(
-        env: Env,
-        borrower: Address,
-        loan_id: u32,
-        amount: i128,
-    ) -> LoanStatus {
+    pub fn record_payment(env: Env, borrower: Address, loan_id: u32, amount: i128) -> LoanStatus {
         Self::assert_not_paused(&env);
         borrower.require_auth();
 
@@ -447,7 +488,9 @@ impl LendingContract {
             .persistent()
             .get(&loan_key)
             .expect("Loan not found");
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         if loan.borrower != borrower {
             panic!("Caller is not the loan borrower");
@@ -472,9 +515,17 @@ impl LendingContract {
 
         let fee_on_payment = capped_amount / 100;
         let lender_amount = capped_amount - fee_on_payment;
-        token.transfer(&env.current_contract_address(), &loan.lender, &lender_amount);
+        token.transfer(
+            &env.current_contract_address(),
+            &loan.lender,
+            &lender_amount,
+        );
 
-        let pool_contract: Address = env.storage().instance().get(&DataKey::LiquidityPoolContract).unwrap();
+        let pool_contract: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::LiquidityPoolContract)
+            .unwrap();
         if loan.lender == pool_contract {
             // Split into principal and interest proportionally
             let principal_part = if loan.total_due > 0 {
@@ -497,11 +548,7 @@ impl LendingContract {
         }
 
         let pcount_key = DataKey::PaymentCount(loan_id);
-        let payment_count: u32 = env
-            .storage()
-            .persistent()
-            .get(&pcount_key)
-            .unwrap_or(0);
+        let payment_count: u32 = env.storage().persistent().get(&pcount_key).unwrap_or(0);
         let new_count = payment_count + 1;
         let payment = PaymentRecord {
             loan_id,
@@ -510,9 +557,13 @@ impl LendingContract {
         };
         let pay_key = DataKey::Payment(loan_id, new_count);
         env.storage().persistent().set(&pay_key, &payment);
-        env.storage().persistent().extend_ttl(&pay_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&pay_key, TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage().persistent().set(&pcount_key, &new_count);
-        env.storage().persistent().extend_ttl(&pcount_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&pcount_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         let paid_early = env.ledger().timestamp() < loan.due_at;
 
@@ -524,12 +575,14 @@ impl LendingContract {
         }
 
         env.storage().persistent().set(&loan_key, &loan);
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         if loan.status == LoanStatus::Repaid {
             Self::decrement_active_borrowings(&env, &borrower);
             Self::decrement_active_lendings(&env, &loan.lender);
-            
+
             let rep_contract: Address = env
                 .storage()
                 .instance()
@@ -569,7 +622,9 @@ impl LendingContract {
             .persistent()
             .get(&loan_key)
             .expect("Loan not found");
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         if loan.status != LoanStatus::Active {
             panic!("Only ACTIVE loans can be defaulted");
@@ -580,7 +635,9 @@ impl LendingContract {
 
         loan.status = LoanStatus::Defaulted;
         env.storage().persistent().set(&loan_key, &loan);
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
 
         Self::decrement_active_borrowings(&env, &loan.borrower);
         Self::decrement_active_lendings(&env, &loan.lender);
@@ -636,24 +693,34 @@ impl LendingContract {
     pub fn bump_loan_ttl(env: Env, loan_id: u32) {
         let loan_key = DataKey::Loan(loan_id);
         if env.storage().persistent().has(&loan_key) {
-            env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+            env.storage()
+                .persistent()
+                .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
         }
         let pcount_key = DataKey::PaymentCount(loan_id);
         if env.storage().persistent().has(&pcount_key) {
-            env.storage().persistent().extend_ttl(&pcount_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+            env.storage()
+                .persistent()
+                .extend_ttl(&pcount_key, TTL_THRESHOLD, TTL_EXTEND_TO);
         }
         let loan: Option<LoanRecord> = env.storage().persistent().get(&loan_key);
         if let Some(l) = loan {
             let bkey = DataKey::BorrowerLoans(l.borrower);
             if env.storage().persistent().has(&bkey) {
-                env.storage().persistent().extend_ttl(&bkey, TTL_THRESHOLD, TTL_EXTEND_TO);
+                env.storage()
+                    .persistent()
+                    .extend_ttl(&bkey, TTL_THRESHOLD, TTL_EXTEND_TO);
             }
             let lkey = DataKey::LenderLoans(l.lender);
             if env.storage().persistent().has(&lkey) {
-                env.storage().persistent().extend_ttl(&lkey, TTL_THRESHOLD, TTL_EXTEND_TO);
+                env.storage()
+                    .persistent()
+                    .extend_ttl(&lkey, TTL_THRESHOLD, TTL_EXTEND_TO);
             }
         }
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     // ── Queries ───────────────────────────────────────────────────────────────
@@ -665,12 +732,16 @@ impl LendingContract {
             .persistent()
             .get(&loan_key)
             .expect("Loan not found");
-        env.storage().persistent().extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&loan_key, TTL_THRESHOLD, TTL_EXTEND_TO);
         loan
     }
 
     pub fn get_loan_count(env: Env) -> u32 {
-        env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .instance()
+            .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::LoanCount)
@@ -700,7 +771,9 @@ impl LendingContract {
             .get(&key)
             .unwrap_or(Vec::new(&env));
         if env.storage().persistent().has(&key) {
-            env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+            env.storage()
+                .persistent()
+                .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
         }
         ids
     }
@@ -713,7 +786,9 @@ impl LendingContract {
             .get(&key)
             .unwrap_or(Vec::new(&env));
         if env.storage().persistent().has(&key) {
-            env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+            env.storage()
+                .persistent()
+                .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
         }
         ids
     }
@@ -732,7 +807,9 @@ impl LendingContract {
             .persistent()
             .get(&key)
             .expect("Payment not found");
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
         rec
     }
 
@@ -740,7 +817,9 @@ impl LendingContract {
         let key = DataKey::ActiveBorrowings(borrower);
         let count: u32 = env.storage().persistent().get(&key).unwrap_or(0);
         if env.storage().persistent().has(&key) {
-            env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+            env.storage()
+                .persistent()
+                .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
         }
         count
     }
@@ -749,7 +828,9 @@ impl LendingContract {
         let key = DataKey::ActiveLendings(lender);
         let count: u32 = env.storage().persistent().get(&key).unwrap_or(0);
         if env.storage().persistent().has(&key) {
-            env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+            env.storage()
+                .persistent()
+                .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
         }
         count
     }
@@ -769,7 +850,9 @@ impl LendingContract {
             .unwrap_or(Vec::new(env));
         ids.push_back(loan_id);
         env.storage().persistent().set(&key, &ids);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     fn push_loan_id_for_lender(env: &Env, lender: &Address, loan_id: u32) {
@@ -781,7 +864,9 @@ impl LendingContract {
             .unwrap_or(Vec::new(env));
         ids.push_back(loan_id);
         env.storage().persistent().set(&key, &ids);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     fn increment_active_borrowings(env: &Env, borrower: &Address) {
@@ -789,7 +874,9 @@ impl LendingContract {
         let mut count: u32 = env.storage().persistent().get(&key).unwrap_or(0);
         count += 1;
         env.storage().persistent().set(&key, &count);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     fn decrement_active_borrowings(env: &Env, borrower: &Address) {
@@ -797,7 +884,9 @@ impl LendingContract {
         let count: u32 = env.storage().persistent().get(&key).unwrap_or(0);
         let count = count.saturating_sub(1);
         env.storage().persistent().set(&key, &count);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     fn increment_active_lendings(env: &Env, lender: &Address) {
@@ -805,7 +894,9 @@ impl LendingContract {
         let mut count: u32 = env.storage().persistent().get(&key).unwrap_or(0);
         count += 1;
         env.storage().persistent().set(&key, &count);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     fn decrement_active_lendings(env: &Env, lender: &Address) {
@@ -813,11 +904,17 @@ impl LendingContract {
         let count: u32 = env.storage().persistent().get(&key).unwrap_or(0);
         let count = count.saturating_sub(1);
         env.storage().persistent().set(&key, &count);
-        env.storage().persistent().extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
     }
 
     fn assert_not_paused(env: &Env) {
-        let paused: bool = env.storage().instance().get(&DataKey::IsPaused).unwrap_or(false);
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::IsPaused)
+            .unwrap_or(false);
         if paused {
             panic!("Contract is paused");
         }
