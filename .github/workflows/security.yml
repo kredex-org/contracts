@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # EmbarkStudios/cargo-deny-action — use @v1
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - uses: EmbarkStudios/cargo-deny-action@v2
         continue-on-error: true
         with:
           command: check advisories licenses bans
